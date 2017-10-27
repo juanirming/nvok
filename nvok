@@ -1,0 +1,184 @@
+#!/usr/bin/env bash
+
+################################################################################
+# nvok v1.0
+#
+# Invoker for scripts written in various scripting languages such as bash, node,
+# perl, php, python and ruby. Allows for easy script execution in plain English
+# "nvok verb noun" format, obviating the need for the user to have knowledge of
+# which language interpreter to execute, and providing other conveniences.
+#
+# For example: "nvok test dependencies", where "test" is simply a sub-directory
+# under the "scripts" directory and "dependencies" could be a bash script, perl
+# script or anything else.
+#
+# An auto-generated tree list of available commands is displayed using the
+# "help" command or by running nvok with no arguments. Directories which should
+# not be treated as command verbs can be configured as hidden (for instance,
+# "lib" and "tmp").
+#
+# Languages are determined by script file extensions such as .sh, .js, .pl,
+# .php, .py and .rb. These are kept hidden from the user and are irrelevant
+# to them.
+#
+# Command line arguments are passed through to the final script like so:
+# "nvok get users 42 84 1337".
+#
+# Convenient bash functions for terminal color output and confirmation prompts
+# are automatically made available to bash scripts executed by nvok.
+#
+# Destructive command verbs such as "delete" and "remove" can easily be
+# configured to automatically trigger a user confirmation prompt before nvok
+# proceeds to execute the corresponding script.
+#
+# Teams of developers using various scripting languages can use nvok to easily
+# contribute to a common CLI toolset whose commands are run in a uniform manner.
+#
+# You can/should rename this bash file to something that makes sense for your
+# project/toolset and then make sure it's in your PATH. The "help" command will
+# automatically reflect the name. Using a different project/context name will
+# also let you have multiple nvok instances, each with its own namespace and
+# configuration. For example: "gameserver clean map 7" and "funthing get joke".
+#
+# Dependencies: scripts/lib/terminal_confirm.sh
+#               scripts/lib/terminal_output.sh
+#               sed
+#               tail
+#               tree
+#
+# Author:       Juan Irming
+
+################################################################################
+# Supported scripting languages and their corresponding source file extensions.
+# Simply add additional languages here as required. It's assumed that these are
+# in your PATH (though you can simply add the full path to any particular one
+# if need be).
+
+declare -A FILE_TYPES
+
+FILE_TYPES[sh]="$SHELL"
+FILE_TYPES[js]='node'
+FILE_TYPES[pl]='perl'
+FILE_TYPES[php]='php'
+FILE_TYPES[py]='python'
+FILE_TYPES[rb]='ruby'
+
+################################################################################
+# Command verbs for which to trigger user confirmation (typically, destructive
+# ones). Add/remove as you see fit.
+
+declare -A CONFIRM_VERBS
+
+CONFIRM_VERBS[clean]=true
+CONFIRM_VERBS[clear]=true
+CONFIRM_VERBS[delete]=true
+CONFIRM_VERBS[destroy]=true
+CONFIRM_VERBS[drop]=true
+CONFIRM_VERBS[remove]=true
+CONFIRM_VERBS[reset]=true
+CONFIRM_VERBS[trash]=true
+
+################################################################################
+# Directories to hide when displaying help message command tree (shared library
+# directories, temporary directories and so on).
+
+HIDDEN_DIRS=(lib tmp)
+
+################################################################################
+# Meta.
+
+APP_NAME=$(basename "$0")
+
+DIR=${BASH_SOURCE[0]}
+DIR=${DIR%/*}
+
+SCRIPTS_PATH="$DIR/scripts/"
+
+################################################################################
+# The functions in these includes are made available to any bash scripts
+# invoked by this script; they do not need to include them explicitly.
+#
+# Color echo examples:
+#
+# cecho "OK" GREEN          (Prints green text on default background)
+# cecho "WARNING" YELLOW    (Prints yellow text on default background)
+# cecho "FAILED" WHITE RED  (Prints white text on red background)
+#
+# User confirmation examples:
+#
+# confirm 'Are you sure?'   (Returns 0 if user confirmed, otherwise 1)
+# xconfirm 'Are you sure?'  (Exits script unless user confirmed)
+#
+# See script files for details.
+
+source $DIR/scripts/lib/terminal_output.sh
+source $DIR/scripts/lib/terminal_confirm.sh
+
+################################################################################
+# Standard utility functions; nothing to see here.
+
+function implode { local IFS="$1"; shift; echo "$*"; }
+
+################################################################################
+# Exit with help message if verb and noun were not specified.
+
+if [ "$1" == 'help' ] || [ -z "$1" ] || [ -z "$2" ]
+then
+    file_types_implode=''
+    for extension in "${!FILE_TYPES[@]}"
+    do
+        file_types_implode="$file_types_implode*.$extension|"
+    done
+    file_types_implode=${file_types_implode%?}
+
+    hidden_dirs_implode=$(implode '|' ${HIDDEN_DIRS[@]})
+
+    printf "\nAvailable commands:\n\n"
+    echo $APP_NAME
+    tree -P "$file_types_implode" -I "$hidden_dirs_implode" --prune --noreport $SCRIPTS_PATH | tail -n+2 | sed 's/\.[^.]*$//'
+    printf "\nExample:\n\n"
+    cecho "$APP_NAME test dependencies\n\n" GREEN
+
+    exit
+fi
+
+################################################################################
+# Run script if it exists, passing through arguments.
+
+verb="$SCRIPTS_PATH$1"
+noun="$verb/$2"
+
+found=false
+
+for extension in "${!FILE_TYPES[@]}"
+do
+    if [ -f "$noun.$extension" ]
+    then
+        found=true
+
+        if [ "${CONFIRM_VERBS[$1]}" == true ]
+        then
+            xconfirm 'Are you sure?'
+        fi
+
+        script_args="$3"
+        for arg in "${@:4}"
+        do
+            script_args="$script_args $arg"
+        done
+
+        echo
+        ${FILE_TYPES[$extension]} $noun.$extension $script_args
+        echo
+    fi
+done
+
+if [ "$found" == false ]
+then
+    cecho "\nUnknown command\n\n" RED
+    printf 'Try: '
+    cecho "$APP_NAME help\n\n" GREEN
+fi
+
+exit
+
