@@ -6,6 +6,24 @@
 # Color terminal output for bash.
 #
 # Author:       Juan Irming
+#
+################################################################################
+# Copyright 2015-2017 Juan Irming
+#
+# This file is part of nvok.
+#
+# nvok is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# nvok is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with nvok.  If not, see <http://www.gnu.org/licenses/>.
 
 ################################################################################
 # Prints text in color. Color constants are defined inside function as opposed
