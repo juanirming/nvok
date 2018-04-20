@@ -17,9 +17,15 @@
 # not be treated as command verbs can be configured as hidden (for instance,
 # "lib" and "tmp").
 #
-# Languages are determined by script file extensions such as .sh, .js, .pl,
+# Languages are determined by script file extensions such as .sh, .go, .js, .pl,
 # .php, .py and .rb. These are kept hidden from the user and are irrelevant
 # to them.
+#
+# .NET Core projects must have a .cs extension on the project directory name.
+# For instance, create a new project like so: "dotnet new console -o test.cs".
+# If another language requiring directories rather than just single files to run
+# is added, those directories will also need corresponding extensions in order
+# for nvok to identify them as commands.
 #
 # Command line arguments are passed through to the final script like so:
 # "nvok get users 42 84 1337".
@@ -49,7 +55,7 @@
 # Author:       Juan Irming
 #
 ################################################################################
-# Copyright 2015-2017 Juan Irming
+# Copyright 2015-2018 Juan Irming
 #
 # This file is part of nvok.
 #
@@ -75,6 +81,8 @@
 declare -A FILE_TYPES
 
 FILE_TYPES[sh]="$SHELL"
+FILE_TYPES[cs]='dotnet run --project'
+FILE_TYPES[go]='go run'
 FILE_TYPES[js]='node'
 FILE_TYPES[pl]='perl'
 FILE_TYPES[php]='php'
@@ -92,6 +100,9 @@ CONFIRM_VERBS[clear]=true
 CONFIRM_VERBS[delete]=true
 CONFIRM_VERBS[destroy]=true
 CONFIRM_VERBS[drop]=true
+CONFIRM_VERBS[empty]=true
+CONFIRM_VERBS[erase]=true
+CONFIRM_VERBS[purge]=true
 CONFIRM_VERBS[remove]=true
 CONFIRM_VERBS[reset]=true
 CONFIRM_VERBS[trash]=true
@@ -153,7 +164,7 @@ then
 
     printf "\nAvailable commands:\n\n"
     echo $APP_NAME
-    tree -P "$file_types_implode" -I "$hidden_dirs_implode" --prune --noreport $SCRIPTS_PATH | tail -n+2 | sed 's/\.[^.]*$//'
+    tree -P "$file_types_implode" -I "$hidden_dirs_implode" -L 2 --noreport $SCRIPTS_PATH | tail -n+2 | sed 's/\.[^.]*$//'
     printf "\nExample:\n\n"
     cecho "$APP_NAME test dependencies\n\n" GREEN
 
@@ -170,7 +181,7 @@ found=false
 
 for extension in "${!FILE_TYPES[@]}"
 do
-    if [ -f "$noun.$extension" ]
+    if [ -e "$noun.$extension" ]
     then
         found=true
 
@@ -188,6 +199,8 @@ do
         echo
         ${FILE_TYPES[$extension]} $noun.$extension $script_args
         echo
+
+        break
     fi
 done
 
